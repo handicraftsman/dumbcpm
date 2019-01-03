@@ -1,1 +1,6 @@
-*/__pycache__
+*/__pycache__/
+MANIFEST
+build/
+dist/
+dumbcpm.egg-info/
+
