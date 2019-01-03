@@ -4,7 +4,8 @@ import os.path
 import glob
 import re
 import sys
-
+import subprocess
+import shlex
 from pathlib import Path
 from functools import cmp_to_key
 
@@ -23,6 +24,46 @@ def system(cmd):
   glog.info('execute', cmd=cmd)
   os.system(cmd)
 
+def has_updated_headers(std, flags, ifile):
+  glog.info('has_updated_headers()', file=ifile)
+
+  c = ''
+  if ifile.endswith('.c'):
+    c = cc
+  elif ifile.endswith('.cpp'):
+    c = cxx
+  else:
+    glob.failure('invalid file extension', file=ifile)
+    sys.exit(1)
+  
+  out = subprocess.check_output(shlex.split(c + ' ' + flags + ' -std=' + std + ' -M ' + ifile)).decode('utf-8')
+  sp = re.compile(r'[\\\r\n\s]+').split(out)
+  sp.pop(0)
+  sp.pop(0)
+
+  for f in sp:
+    if not f:
+      continue
+    if os.path.getmtime(f) > os.path.getmtime(ifile):
+      return True
+  
+  return False
+
+def has_updated_sources(ofile, ifiles):
+  glog.info('has_updated_sources()', ofile=ofile)
+
+  if not os.path.isfile(ofile):
+    return True
+  
+  for f in ifiles:
+    if not f:
+      continue
+    if os.path.getmtime(f) > os.path.getmtime(ofile):
+      return True
+    
+  
+  return False
+  
 class Target:
   def __init__(self, ctx, pm, name, data):
     self.log = glog.bind(pkg=pm.name, name=name, type=data['type'])
@@ -225,6 +266,8 @@ class PMContext:
     else:
       self.log.failure('invalid file extension', file=ifile)
       sys.exit(1)
+    if os.path.isfile(ofile) and ((os.path.getmtime(ofile) < os.path.getmtime(ifile)) or (not has_updated_headers(std, target.flags, ifile))):
+      return
     system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile)
     
   def build_target(self, pkg, target):
@@ -245,9 +288,11 @@ class PMContext:
     else:
       c = cc
     if target.type == 'executable':
-      system(c + ' ' + target.flags + ' -o ./dumbcpm-build/' + target.name + ' ' + ' '.join(ofiles))
+      if has_updated_sources('./dumbcpm-build/' + target.name, ofiles):
+        system(c + ' ' + target.flags + ' -o ./dumbcpm-build/' + target.name + ' ' + ' '.join(ofiles))
     elif target.type == 'library':
-      system(c + ' -shared ' + target.flags + ' -o ./dumbcpm-build/lib' + target.name + '.so ' + ' '.join(ofiles))
+      if has_updated_sources('./dumbcpm-build/lib' + target.name + '.so', ofiles):
+        system(c + ' -shared ' + target.flags + ' -o ./dumbcpm-build/lib' + target.name + '.so ' + ' '.join(ofiles))
     else:
       self.log.failure('invalid target type', target=target.name, type=target.type)
       sys.exit(1)
