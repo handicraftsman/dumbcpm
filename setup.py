@@ -17,4 +17,11 @@ setup(name='dumbcpm',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: MIT License',
           'Operating System :: POSIX :: Linux'
+      ],
+      install_requires=[
+          'structlog',
+          'PyYAML',
+          'semver',
+          'colorama',
+          'pkgconfig'
       ])
