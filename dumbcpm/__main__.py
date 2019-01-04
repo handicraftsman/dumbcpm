@@ -275,6 +275,8 @@ class PMContext:
     if target.built:
       return
     target.built = True
+    if not target.sources:
+      return
     ofiles = []
     for ifile in target.sources:
       if pkg.name != self.this_package.name:
