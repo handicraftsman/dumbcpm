@@ -102,7 +102,7 @@ class PackageManifest:
     self.depends = data.get('depends', {})
     self.targets_base = data.get('targets', {})
     self.targets = {}
-    self.build_anyways = data.get('build-anyways', [])
+    self.also_build = data.get('also-build', [])
     self.loaded = False
     self.built = False
     self.loaded_targets = False
@@ -334,6 +334,9 @@ class PMContext:
         self.log.failure('unable to find target in package', pkg=p, target=t)
         sys.exit(1)
       to = po.targets[t]
+      if to.type != 'library':
+        self.log.failure('unable to link to a non-library target', pkg=p, target=t)
+        sys.exit(1)
       target.link[dn] = to
       target.include_dirs = target.include_dirs.union(to.include_dirs)
     for d in target.include_dirs:
@@ -349,7 +352,15 @@ class PMContext:
       for tn, t in pkg.targets.items():
         self.link_target(pkg, t)
     self.build_pkg(self.this_package)
-        
+    for dn in self.this_package.also_build:
+      print('Also building ' + dn)
+      sp = dn.split('/')
+      pn = sp[0]
+      tn = sp[1]
+      pkg = self.packages_v[pn][self.versions[pn][-1]]
+      t = pkg.targets[tn]
+      self.build_target(pkg, t)
+      
 if __name__ == "__main__":
   home = str(Path.home())
 
