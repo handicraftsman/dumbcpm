@@ -360,6 +360,8 @@ class PMContext:
     for d in target.include_dirs:
       target.flags += (' -I' + d)
     for dn, to in target.link.items():
+      if not to.sources:
+        continue
       target.flags += (' -l' + to.name)
       
   def build(self):
