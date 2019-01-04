@@ -77,7 +77,12 @@ class Target:
     self.link_info = data.get('link', [])
     self.link = {}
     self.type = data.get('type', 'executable')
-    self.include_dirs = set([('./dumbcpm-packages/' + pm.name + '/' + d) for d in data.get('include-dirs', [])])
+    def upd(d):
+      if ctx.this_package.name == pm.name:
+        return d
+      else:
+        return './dumbcpm-packages/' + pm.name + '/' + d + '/'
+    self.include_dirs = set([upd(d) for d in data.get('include-dirs', [])])
     self.sources = data.get('sources', [])
     self.cpp = data.get('cpp', 'c++11')
     self.c = data.get('c', 'c11')
@@ -216,8 +221,9 @@ class PMContext:
       if not self.this_package.name in self.packages_v:
         self.packages_v[self.this_package.name] = {}
       self.packages_v[self.this_package.name][self.this_package.version] = self.this_package
+      self.versions[self.this_package.name] = [self.this_package.version]
     self.load_dependencies(self.this_package, build)
-
+    
   def limit_package_versions(self, name, spec):
     self.log.info('PMContext.limit_package_versions()', pkg=name, spec=spec)
     specs = spec.split(',')
