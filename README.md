@@ -54,6 +54,8 @@ targets:
                     # another package.
     # flags: -DWHATEVER # In this way you can define extra compile flags to be used
                         # at compile time.
+    # after-flags: -DWHATEVER # These flags will be added at the end of the command.
+                              # This can be used for linking with static libraries.
 ```
 
 ### Fetching packages for build

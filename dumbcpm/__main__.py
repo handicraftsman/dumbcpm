@@ -99,6 +99,7 @@ class Target:
     self.c = data.get('c', 'c11')
     self.pkg_config = data.get('pkg-config', [])
     self.flags = ' -Wl,-rpath=\'$ORIGIN\' -fPIC -L./dumbcpm-build/ ' + data.get('flags', '') + ' '
+    self.after_flags = ' ' + data.get('after-flags', '') + ' '
     self.has_cpp_sources = False
     for s in self.sources:
       if s.endswith('.cpp'):
@@ -285,7 +286,7 @@ class PMContext:
       sys.exit(1)
     if os.path.isfile(ofile) and ((os.path.getmtime(ofile) < os.path.getmtime(ifile)) or (not has_updated_headers(std, target.flags, ifile))):
       return
-    system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile)
+    system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile + ' ' + target.after_flags)
     
   def build_target(self, pkg, target):
     if target.built:
@@ -304,16 +305,19 @@ class PMContext:
       ofiles.append(ofile)
       self.build_file(pkg, target, ifile, ofile)
     c = ''
+    std = ''
     if target.has_cpp_sources:
       c = cxx
+      std = target.cpp
     else:
       c = cc
+      std = target.c
     if target.type == 'executable':
       if has_updated_sources('./dumbcpm-build/' + target.name, ofiles):
-        system(c + ' ' + target.flags + ' -o ./dumbcpm-build/' + target.name + ' ' + ' '.join(ofiles))
+        system(c + ' -std=' + std + ' ' + target.flags + ' -o ./dumbcpm-build/' + target.name + ' ' + ' '.join(ofiles) + ' ' + target.after_flags)
     elif target.type == 'library':
       if has_updated_sources('./dumbcpm-build/lib' + target.name + '.so', ofiles):
-        system(c + ' -shared ' + target.flags + ' -o ./dumbcpm-build/lib' + target.name + '.so ' + ' '.join(ofiles))
+        system(c + ' -shared -std=' + std + ' ' + target.flags + ' -o ./dumbcpm-build/lib' + target.name + '.so ' + ' '.join(ofiles) + ' ' + target.after_flags)
     else:
       self.log.failure('invalid target type', target=target.name, type=target.type)
       sys.exit(1)
