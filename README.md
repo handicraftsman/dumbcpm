@@ -75,6 +75,14 @@ This will build all targets specified in the current package and their dependenc
 
 More targets to build can be specified as shown above.
 
+### Copying libraries
+
+pkg-config libraries required by the project can be copied into the build directory using the next command:
+
+```bash
+python -m dumbcpm libs
+```
+
 ### Creating a repository
 
 dumbcpm repository is a folder (possibly a git repository) with structure like below:

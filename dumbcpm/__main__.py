@@ -20,6 +20,17 @@ glog = wrap_logger(get_logger(), processors=[ConsoleRenderer(pad_event=42, color
 cc = os.getenv('CC', 'gcc')
 cxx = os.getenv('CXX', 'g++')
 
+syslibs = []
+libpaths = re.findall(r'SEARCH_DIR\("(.+?)"\);', subprocess.check_output(shlex.split('bash -c "ld --verbose | grep SEARCH_DIR"')).decode('utf-8')) + os.getenv('LD_LIBRARY_PATH', '').split(':')
+
+def find_lib(lib):
+  glog.info('find_lib()', lib=lib)
+  for lp in libpaths:
+    if os.path.isfile(lp + '/' + lib):
+      return lp + '/' + lib
+  glog.failure('unable to find a library', lib=lib)
+  sys.exit(1)
+  
 def system(cmd):
   glog.info('execute', cmd=cmd)
   os.system(cmd)
@@ -277,10 +288,12 @@ class PMContext:
     system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile)
     
   def build_target(self, pkg, target):
-    self.log.info('PMContext.build_target()', pkg=pkg.name, target=target.name)
     if target.built:
       return
     target.built = True
+    for tn, to in target.link.items():
+      self.build_target(to.pm, to)
+    self.log.info('PMContext.build_target()', pkg=pkg.name, target=target.name)
     if not target.sources:
       return
     ofiles = []
@@ -310,9 +323,6 @@ class PMContext:
     if pkg.built:
       return
     pkg.built = True
-    for pn in pkg.depends.keys():
-      self.build_pkg(self.packages_v[pn][self.versions[pn][-1]])
-    self.log.info('actually building', pkg=pkg.name)
     for tn, to in pkg.targets.items():
       self.build_target(pkg, to)
 
@@ -361,13 +371,51 @@ class PMContext:
         self.link_target(pkg, t)
     self.build_pkg(self.this_package)
     for dn in self.this_package.also_build:
-      print('Also building ' + dn)
       sp = dn.split('/')
       pn = sp[0]
       tn = sp[1]
       pkg = self.packages_v[pn][self.versions[pn][-1]]
       t = pkg.targets[tn]
       self.build_target(pkg, t)
+
+  def libs_pkg(self, pkg):
+    self.log.info('PMContext.libs_pkg()', pkg=pkg.name)
+    if pkg.built:
+      return
+    pkg.built = True
+    for tn, to in pkg.targets.items():
+      self.libs_target(pkg, to)
+      
+  def libs_target(self, pkg, target):
+    if target.built:
+      return
+    target.built = True
+    for dn, to in target.link.items():
+      self.libs_target(to.pm, to)
+    self.log.info('PMContext.libs_target()', pkg=pkg.name, target=target.name)
+    libs = pkgconfig.parse(' '.join(target.pkg_config))['libraries']
+    for lib in libs:
+      lp = find_lib('lib' + lib + '.so')
+      if os.path.isfile('./dumbcpm-build/lib' + lib + '.so') and (os.path.getmtime('./dumbcpm-build/lib' + lib + '.so') > os.path.getmtime(lp)):
+        continue
+      system('cp ' + lp + ' ./dumbcpm-build/lib' + lib + '.so')
+      system('patchelf --set-rpath \'$ORIGIN\' ./dumbcpm-build/lib' + lib + '.so') 
+    
+  def libs(self):
+    self.log.info('PMContext.libs()')
+    for name, vv in self.packages_v.items():
+      pkg = vv[self.versions[name][-1]]
+      pkg.load_targets()
+      for tn, t in pkg.targets.items():
+        self.link_target(pkg, t)
+    self.libs_pkg(self.this_package)
+    for dn in self.this_package.also_build:
+      sp = dn.split('/')
+      pn = sp[0]
+      tn = sp[1]
+      pkg = self.packages_v[pn][self.versions[pn][-1]]
+      t = pkg.targets[tn]
+      self.libs_target(pkg, t)
       
 if __name__ == "__main__":
   home = str(Path.home())
@@ -392,6 +440,9 @@ if __name__ == "__main__":
   parser_build = subparsers.add_parser('build', help='builds current package and its dependencies')
   parser_build.set_defaults(which = 'build')
 
+  parser_libs = subparsers.add_parser('libs', help='copies system libraries into the build directory')
+  parser_libs.set_defaults(which = 'libs')
+  
   res = parser.parse_args()
 
   if res.which == 'fetch':
@@ -404,6 +455,12 @@ if __name__ == "__main__":
     ctx = PMContext()
     ctx.load_this(True)
     ctx.build()
+  elif res.which == 'libs':
+    if not os.path.isdir('./dumbcpm-build'):
+      os.mkdir('./dumbcpm-build')
+    ctx = PMContext()
+    ctx.load_this(True)
+    ctx.libs()
   else:
     print('Invalid command')
     sys.exit(2)

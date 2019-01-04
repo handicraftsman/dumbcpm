@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='dumbcpm',
-      version='0.2.2',
+      version='0.3.0',
       description='Possibly very dumb package manager for C/++, written in Python.',
       author='Nickolay Ilyushin',
       author_email='nickolay02@inbox.ru',
