@@ -33,8 +33,11 @@ def find_lib(lib):
   
 def system(cmd):
   glog.info('execute', cmd=cmd)
-  os.system(cmd)
-
+  c = os.system(cmd)
+  if c != 0:
+    glog.failure('unable to execute a command', cmd=cmd)
+    sys.exit(1)
+  
 def has_updated_headers(std, flags, ifile):
   glog.info('has_updated_headers()', file=ifile)
 
