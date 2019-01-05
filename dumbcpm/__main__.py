@@ -44,7 +44,7 @@ def has_updated_headers(std, flags, ifile):
   elif ifile.endswith('.cpp'):
     c = cxx
   else:
-    glob.failure('invalid file extension', file=ifile)
+    glog.failure('invalid file extension', file=ifile)
     sys.exit(1)
   
   out = subprocess.check_output(shlex.split(c + ' ' + flags + ' -std=' + std + ' -M ' + ifile)).decode('utf-8')
@@ -60,7 +60,7 @@ def has_updated_headers(std, flags, ifile):
   
   return False
 
-def has_updated_sources(ofile, ifiles):
+def has_updated_sources(std, flags, ofile, ifiles):
   glog.info('has_updated_sources()', ofile=ofile)
 
   if not os.path.isfile(ofile):
@@ -286,9 +286,8 @@ class PMContext:
     else:
       self.log.failure('invalid file extension', file=ifile)
       sys.exit(1)
-    if os.path.isfile(ofile) and ((os.path.getmtime(ofile) < os.path.getmtime(ifile)) or (not has_updated_headers(std, target.flags, ifile))):
-      return
-    system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile + ' ' + target.after_flags)
+    if (not os.path.isfile(ofile)) or (os.path.getmtime(ofile) < os.path.getmtime(ifile)) or has_updated_headers(std, target.flags, ifile):
+      system(c + ' -c ' + target.flags + ' -std=' + std + ' -o ' + ofile + ' ' + ifile + ' ' + target.after_flags)
     
   def build_target(self, pkg, target):
     if target.built:
@@ -315,10 +314,10 @@ class PMContext:
       c = cc
       std = target.c
     if target.type == 'executable':
-      if has_updated_sources('./dumbcpm-build/' + target.name, ofiles):
+      if has_updated_sources(std, target.flags, './dumbcpm-build/' + target.name, ofiles):
         system(c + ' -std=' + std + ' ' + target.flags + ' -o ./dumbcpm-build/' + target.name + ' ' + ' '.join(ofiles) + ' ' + target.after_flags)
     elif target.type == 'library':
-      if has_updated_sources('./dumbcpm-build/lib' + target.name + '.so', ofiles):
+      if has_updated_sources(std, target.flags, './dumbcpm-build/lib' + target.name + '.so', ofiles):
         system(c + ' -shared -std=' + std + ' ' + target.flags + ' -o ./dumbcpm-build/lib' + target.name + '.so ' + ' '.join(ofiles) + ' ' + target.after_flags)
     else:
       self.log.failure('invalid target type', target=target.name, type=target.type)
