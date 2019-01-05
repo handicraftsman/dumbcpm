@@ -98,7 +98,9 @@ class Target:
     self.cpp = data.get('cpp', 'c++11')
     self.c = data.get('c', 'c11')
     self.pkg_config = data.get('pkg-config', [])
-    self.flags = ' -Wl,-rpath=\'$ORIGIN\' -fPIC -L./dumbcpm-build/ ' + data.get('flags', '') + ' '
+    self.libs = data.get('libs', [])
+    self.libflags = ' '.join(['-l' + lib for lib in self.libs])
+    self.flags = ' -Wl,-rpath=\'$ORIGIN\' -fPIC -L./dumbcpm-build/ ' + self.libflags + ' ' + data.get('flags', '') + ' '
     self.after_flags = ' ' + data.get('after-flags', '') + ' '
     self.has_cpp_sources = False
     for s in self.sources:
