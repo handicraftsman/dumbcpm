@@ -403,7 +403,7 @@ class PMContext:
     for dn, to in target.link.items():
       self.libs_target(to.pm, to)
     self.log.info('PMContext.libs_target()', pkg=pkg.name, target=target.name)
-    libs = pkgconfig.parse(' '.join(target.pkg_config))['libraries']
+    libs = pkgconfig.parse(' '.join(target.pkg_config))['libraries'] + target.libs
     for lib in libs:
       lp = find_lib('lib' + lib + '.so')
       if os.path.isfile('./dumbcpm-build/lib' + lib + '.so') and (os.path.getmtime('./dumbcpm-build/lib' + lib + '.so') > os.path.getmtime(lp)):
