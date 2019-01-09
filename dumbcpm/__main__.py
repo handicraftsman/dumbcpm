@@ -23,9 +23,9 @@ cxx = os.getenv('CXX', 'g++')
 syslibs = []
 libpaths = re.findall(r'SEARCH_DIR\("(.+?)"\);', subprocess.check_output(shlex.split('bash -c "ld --verbose | grep SEARCH_DIR"')).decode('utf-8')) + os.getenv('LD_LIBRARY_PATH', '').split(':')
 
-def find_lib(lib):
+def find_lib(lib, pth):
   glog.info('find_lib()', lib=lib)
-  for lp in libpaths:
+  for lp in pth:
     if os.path.isfile(lp + '/' + lib):
       return lp + '/' + lib
   glog.failure('unable to find a library', lib=lib)
@@ -192,6 +192,9 @@ class PMContext:
     self.packages = {}
     self.packages_v = {}
     self.this_package = None
+    self.include_dirs = self.data.get('include-dirs', [])
+    self.library_dirs = self.data.get('library-dirs', [])
+    self.ctxflags = ' '.join(['-I' + d for d in self.include_dirs] + ['-L' + d for d in self.library_dirs])
     
   def list_versions(self, name):
     self.log.info('PMContext.list_versions()', name=name)
@@ -345,6 +348,7 @@ class PMContext:
     if target.linked:
       return
     target.linked = True
+    target.flags = self.ctxflags + ' ' + target.flags
     for pc in target.pkg_config:
       self.link_target_pkgconfig(pkg, target, pc)
     for dn in target.link_info:
@@ -405,7 +409,7 @@ class PMContext:
     self.log.info('PMContext.libs_target()', pkg=pkg.name, target=target.name)
     libs = pkgconfig.parse(' '.join(target.pkg_config))['libraries'] + target.libs
     for lib in libs:
-      lp = find_lib('lib' + lib + '.so')
+      lp = find_lib('lib' + lib + '.so', libpaths + self.library_dirs)
       if os.path.isfile('./dumbcpm-build/lib' + lib + '.so') and (os.path.getmtime('./dumbcpm-build/lib' + lib + '.so') > os.path.getmtime(lp)):
         continue
       system('cp ' + lp + ' ./dumbcpm-build/lib' + lib + '.so')
